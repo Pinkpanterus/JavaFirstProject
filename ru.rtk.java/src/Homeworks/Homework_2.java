@@ -19,7 +19,7 @@ public class Homework_2
         System.out.println("Задание 2");
 
         final String[] NAMES = {"камень", "ножницы", "бумага"};
-        final String[] RESULT = {"ничья", "победил Вася", "победил Петя"};
+        final String[] RESULTS = {"ничья", "победил Вася", "победил Петя"};
 
         Random random = new Random();
         int vasyaChoice = random.nextInt(3);
@@ -28,8 +28,8 @@ public class Homework_2
         System.out.printf("Выбор Васи: %s %n", NAMES[vasyaChoice]);
         System.out.printf("Выбор Пети: %s %n", NAMES[petyaChoice]);
 
-        int result = whoWins(vasyaChoice, petyaChoice);
-        System.out.printf("Результат: %s! %n", RESULT[result]);
+        int winner = whoWins(vasyaChoice, petyaChoice);
+        System.out.printf("Результат: %s! %n", RESULTS[winner]);
     }
 
     private static int whoWins(int a, int b)
