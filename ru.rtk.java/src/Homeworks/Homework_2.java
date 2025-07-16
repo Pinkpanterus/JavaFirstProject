@@ -18,21 +18,18 @@ public class Homework_2
     {
         System.out.println("Задание 2");
 
+        final String[] NAMES = {"камень", "ножницы", "бумага"};
+        final String[] RESULT = {"ничья", "победил Вася", "победил Петя"};
+
         Random random = new Random();
         int vasyaChoice = random.nextInt(3);
         int petyaChoice = random.nextInt(3);
-        final String[] NAMES = {"камень", "ножницы", "бумага"};
 
         System.out.printf("Выбор Васи: %s %n", NAMES[vasyaChoice]);
         System.out.printf("Выбор Пети: %s %n", NAMES[petyaChoice]);
 
         int result = whoWins(vasyaChoice, petyaChoice);
-        switch (result)
-        {
-            case 0  -> System.out.println("Результат: ничья!");
-            case 1  -> System.out.println("Результат: победил Вася!");
-            default -> System.out.println("Результат: победил Петя!");
-        }
+        System.out.printf("Результат: %s! %n", RESULT[result]);
     }
 
     private static int whoWins(int a, int b)
