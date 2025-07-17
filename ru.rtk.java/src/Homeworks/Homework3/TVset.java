@@ -15,7 +15,7 @@ public class TVset {
         System.out.printf("TVset id: %d is %s!%n", this.id, isOn ? "on" : "off");
     }
 
-    public void switchRandomChannel(){
+    public void switchRandomChannel() {
         Random random = new Random();
         int randomInt = random.nextInt(this.CHANNELS.length);
         this.switchChannel(CHANNELS[randomInt]);
@@ -23,22 +23,18 @@ public class TVset {
 
     public void switchChannel(int channel) {
         if (isOn) {
-            if (Arrays.stream(CHANNELS).anyMatch(ch -> ch == channel))
-            {
+            if (Arrays.stream(CHANNELS).anyMatch(ch -> ch == channel)) {
                 currentChannel = channel;
                 System.out.printf("Tvset id: %d is switched to channel %d! %n", this.id, channel);
-            }
-            else
+            } else
                 System.out.printf("Tvset id: %d cant switch to channel: %d. This channel is unavailable! %n", this.id, channel);
-        }
-        else {
+        } else {
             System.out.printf("TVset id: %d is offline. Cant switch to channel: %d.%n", this.id, channel);
         }
     }
 
     public TVset(boolean isOn, int currentChannel) {
-        ++tvsetTotalCount;
-        this.id = tvsetTotalCount;
+        this.id = ++tvsetTotalCount;
         this.isOn = isOn;
         this.currentChannel = currentChannel;
     }
@@ -48,15 +44,15 @@ public class TVset {
         return this.isOn;
     }
 
-    public int getCurrentChannel(){
+    public int getCurrentChannel() {
         return this.currentChannel;
     }
 
-    public int getId(){
+    public int getId() {
         return id;
     }
 
-    public void getTVsetInfo(){
+    public void getTVsetInfo() {
         System.out.printf("TVset id: %d, power on: %b, current channel: %d %n", getId(), this.getPowerStatus(), this.getCurrentChannel());
     }
 }
