@@ -12,7 +12,7 @@ public class HW_4_3 {
         String[] splitedStrings = enteredString.split(" ");
         StringBuilder sb = new StringBuilder(enteredString.length());
         for (String string: splitedStrings){
-            char[] chars = string.toCharArray();
+            char[] chars = string.toLowerCase().toCharArray();
             Arrays.sort(chars);
             sb.append(chars);
 
