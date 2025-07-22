@@ -8,6 +8,7 @@ public class HW_4_2 {
         System.out.println("Строку со стрелами >>--> и <--<<");
         Scanner scanner = new Scanner(System.in);
         String enteredString = scanner.nextLine();
+        scanner.close();
 
         int cnt = 0;
         for (String arrow : arrows) {

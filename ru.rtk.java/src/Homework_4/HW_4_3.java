@@ -8,6 +8,7 @@ public class HW_4_3 {
         System.out.println("Введите строку из двух слов на латинице:");
         Scanner scanner = new Scanner(System.in);
         String enteredString = scanner.nextLine();
+        scanner.close();
 
         String[] splitedStrings = enteredString.split(" ");
         StringBuilder sb = new StringBuilder(enteredString.length());

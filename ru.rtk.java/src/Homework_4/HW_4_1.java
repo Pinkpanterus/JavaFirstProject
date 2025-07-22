@@ -8,6 +8,7 @@ public class HW_4_1 {
         System.out.println("Введите одну букву латинского алфавита");
         Scanner scanner = new Scanner(System.in);
         String string = scanner.nextLine();
+        scanner.close();
 
         int index = keyboard.indexOf(string.toLowerCase().charAt(0));
         int prevIndex = (index - 1 + keyboard.length()) % keyboard.length();
