@@ -12,19 +12,19 @@ public class TVset {
 
     public void switchPower() {
         this.isOn = !this.isOn;
-        System.out.printf("TVset id: %d is %s!%n", this.id, isOn ? "on" : "off");
+        System.out.printf("TVset id: %d is %s!%n", this.id, this.isOn ? "on" : "off");
     }
 
     public void switchRandomChannel() {
         Random random = new Random();
         int randomInt = random.nextInt(this.CHANNELS.length);
-        this.switchChannel(CHANNELS[randomInt]);
+        this.switchChannel(this.CHANNELS[randomInt]);
     }
 
     public void switchChannel(int channel) {
         if (isOn) {
-            if (Arrays.stream(CHANNELS).anyMatch(ch -> ch == channel)) {
-                currentChannel = channel;
+            if (Arrays.stream(this.CHANNELS).anyMatch(ch -> ch == channel)) {
+                this.currentChannel = channel;
                 System.out.printf("Tvset id: %d is switched to channel %d! %n", this.id, channel);
             } else
                 System.out.printf("Tvset id: %d cant switch to channel: %d. This channel is unavailable! %n", this.id, channel);
@@ -49,7 +49,7 @@ public class TVset {
     }
 
     public int getId() {
-        return id;
+        return this.id;
     }
 
     public void getTVsetInfo() {
