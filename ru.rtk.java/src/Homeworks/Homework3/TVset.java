@@ -22,7 +22,7 @@ public class TVset {
     }
 
     public void switchChannel(int channel) {
-        if (isOn) {
+        if (this.isOn) {
             if (Arrays.stream(this.CHANNELS).anyMatch(ch -> ch == channel)) {
                 this.currentChannel = channel;
                 System.out.printf("Tvset id: %d is switched to channel %d! %n", this.id, channel);
