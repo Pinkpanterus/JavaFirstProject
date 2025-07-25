@@ -1,7 +1,5 @@
 package Attestation.Attestation01;
 
-import com.sun.source.doctree.EscapeTree;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -12,8 +10,8 @@ public class App {
 
         Map<String, Person> persons = new LinkedHashMap<>();
         String[] personsData = scanner.nextLine().split(";");
-        for (String token : personsData) {
-            String[] kv = token.split("=");
+        for (String personData : personsData) {
+            String[] kv = personData.split("=");
             String name = kv[0].trim();
             int money;
             try {
@@ -51,6 +49,7 @@ public class App {
         while (true) {
             String line = scanner.nextLine().trim();
             if ("END".equalsIgnoreCase(line)) break;
+
             String[] parts = line.split("-");
             if (parts.length != 2) continue;
             String personName = parts[0].trim();
@@ -62,6 +61,7 @@ public class App {
             if (person != null && product != null) {
                 person.buyProduct(product);
             }
+            else System.out.println(person == null ? "Person not found" : "Product not found");
         }
 
         persons.values().forEach(System.out::println);

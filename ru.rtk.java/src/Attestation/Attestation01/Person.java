@@ -3,6 +3,7 @@ package Attestation.Attestation01;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class Person {
     private String name;
@@ -10,12 +11,18 @@ public class Person {
     private List<Product> productsInBucket = new ArrayList<>();
 
     public Person(String name, int money, List<Product> products) {
+        if (money < 0) System.out.println("Деньги не могут быть отрицательным числом!");
+        if (name == null || name.isBlank() || name.length() < 3) System.out.println("Имя не может быть пустой строкой и не может быть короче 3 символов!");
+
         this.name = name;
         this.money = money;
         this.productsInBucket = products;
     }
 
     public Person(String name, int money) {
+        if (money < 0) System.out.println("Деньги не могут быть отрицательным числом!");
+        if (name == null || name.isBlank() || name.length() < 3) System.out.println("Имя не может быть пустой строкой и не может быть короче 3 символов!");
+
         this.name = name;
         this.money = money;
     }
@@ -54,7 +61,8 @@ public class Person {
     }
 
     public boolean buyProduct(Product product){
-        if (this.money >= product.getPrice()){
+        if (this.money >= product.getPrice())
+        {
             this.money -= product.getPrice();
             this.productsInBucket.add(product);
             System.out.printf("%s купил %s.%n", this.name, product.getName());
@@ -80,10 +88,7 @@ public class Person {
 
     @Override
     public String toString() {
-        return "Person{" +
-                "name='" + name + '\'' +
-                ", money=" + money +
-                ", productsInBucket=" + productsInBucket +
-                '}';
+        String productsInBucketPresentation = productsInBucket.stream().map(Product::toString).collect(Collectors.joining(", "));
+        return productsInBucket.isEmpty()? this.name + " - " + "Ничего не куплено" : this.name + " - " + productsInBucketPresentation;
     }
 }
