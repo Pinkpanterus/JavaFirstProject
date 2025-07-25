@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class HW_4_3 {
-    public static void main(String[] args){
+    public static void main(String[] args) {
         System.out.println("Введите строку из двух слов на латинице:");
         Scanner scanner = new Scanner(System.in);
         String enteredString = scanner.nextLine();
@@ -12,7 +12,7 @@ public class HW_4_3 {
 
         String[] splitedStrings = enteredString.split(" ");
         StringBuilder sb = new StringBuilder(enteredString.length());
-        for (String string: splitedStrings){
+        for (String string : splitedStrings) {
             char[] chars = string.toLowerCase().toCharArray();
             Arrays.sort(chars);
             sb.append(chars);
