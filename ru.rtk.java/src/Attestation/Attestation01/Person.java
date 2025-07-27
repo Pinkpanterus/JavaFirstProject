@@ -12,7 +12,7 @@ public class Person {
 
     public Person(String name, int money, List<Product> products) {
         if (money < 0) System.out.println("Деньги не могут быть отрицательным числом!");
-        if (name == null || name.isBlank() || name.length() < 3) System.out.println("Имя не может быть пустой строкой и не может быть короче 3 символов!");
+        if (!checkName(name)) return;
 
         this.name = name;
         this.money = money;
@@ -21,7 +21,7 @@ public class Person {
 
     public Person(String name, int money) {
         if (money < 0) System.out.println("Деньги не могут быть отрицательным числом!");
-        if (name == null || name.isBlank() || name.length() < 3) System.out.println("Имя не может быть пустой строкой и не может быть короче 3 символов!");
+        if (!checkName(name)) return;
 
         this.name = name;
         this.money = money;
@@ -32,11 +32,20 @@ public class Person {
     }
 
     public void setName(String name) {
-        if (name == null || name.isBlank() || name.length() < 3){
-            System.out.println("Имя не может быть пустой строкой и не может быть короче 3 символов!");
-            return;
-        }
+        if (!checkName(name)) return;
         this.name = name;
+    }
+
+    private static boolean checkName(String name) {
+        if (name == null || name.isBlank()){
+            System.out.println("Имя не может быть пустой строкой!");
+            return false;
+        }
+        if (name.length() < 3){
+            System.out.println("Имя не может быть короче 3 символов!");
+            return false;
+        }
+        return true;
     }
 
     public int getMoney() {
