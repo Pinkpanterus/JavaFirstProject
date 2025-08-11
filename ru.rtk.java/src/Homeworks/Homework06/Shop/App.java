@@ -44,7 +44,7 @@ public class App {
                 newFsmState = new ProductEnteringState();
         }
 
-        if (newFsmState != null && fsmCurrentState != newFsmState) {
+        if (newFsmState != null && fsmCurrentState.getClass() != newFsmState.getClass()) {
             fsm.setState(newFsmState);
         }
     }

@@ -6,7 +6,6 @@ import Homeworks.Homework06.Shop.FSM.State;
 public class PersonEnteringState extends BasicState {
     @Override
     public void enterState() {
-//        System.out.println("Введите покупателей в формате (ФИО = количество денег): Павел Андреевич = 10000; Анна Петровна = 2000");
         System.out.println("Введите товары в формате (Название = цена): Хлеб = 40; Молоко = 60");
     }
 

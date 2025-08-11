@@ -6,8 +6,7 @@ import Homeworks.Homework06.Shop.FSM.State;
 public class ProductEnteringState extends BasicState {
     @Override
     public void enterState() {
-//        System.out.println("Введите товары в формате (Название = цена): Хлеб = 40; Молоко = 60");
-        System.out.println("В каждой новой строке введите покупку в формате (ФИО - Товар): Павел Андреевич - Торт");
+        System.out.println("В каждой новой строке введите покупку в формате (ФИО - Товар): Павел Андреевич - Молоко");
     }
 
     @Override
