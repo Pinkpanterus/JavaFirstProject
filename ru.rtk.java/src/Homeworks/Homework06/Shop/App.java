@@ -1,108 +1,86 @@
 package Homeworks.Homework06.Shop;
 
+import Homeworks.Homework06.Shop.FSM.FiniteStateMachine;
+import Homeworks.Homework06.Shop.FSM.State;
+import Homeworks.Homework06.Shop.FSM.States.*;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 
 public class App {
-    private static State currentState = State.INITIAL_STATE;
     private static Map<String, Person> persons = new LinkedHashMap<>();
     private static Map<String, Product> products = new LinkedHashMap<>();
+    private static final Scanner scanner = new Scanner(System.in);
+    private static boolean isRunning = true;
+    private static FiniteStateMachine fsm;
+    private static App app;
 
     public static void main(String[] args) {
-        //Run cycle
-        Scanner scanner = new Scanner(System.in);
-        while (currentState != State.END_STATE) {
-            String input = scanner.nextLine().trim();
+        app = new App();
+        fsm = new FiniteStateMachine(app);
+        fsm.setState(new EnterState());
+
+        String input = "";
+        while (isRunning) {
+            if (scanner.hasNextLine()) input = scanner.nextLine().trim();
             checkState(input);
-            executeString(input, scanner);
-        }
-    }
-
-    private static void endWork(Scanner scanner) {
-        persons.values().forEach(System.out::println);
-        scanner.close();
-    }
-
-    private static void addPurchase(String input) {
-        String[] parts = input.split("-");
-        if (parts.length != 2) return;
-        String personName = parts[0].trim();
-        String productName = parts[1].trim();
-
-        Person person = persons.get(personName);
-        Product product = products.get(productName);
-
-        if (person != null && product != null) {
-            person.buyProduct(product);
-        } else {
-            System.out.println(person == null ? "Person not found" : "Product not found");
-        }
-    }
-
-    private static void addProducts(String input) {
-        String[] productsData = input.split(";");
-        for (String token : productsData) {
-            String[] kv = token.split("=");
-            if (kv.length != 2) continue;
-            String name = kv[0].trim();
-            int cost;
-            try {
-                cost = Integer.parseInt(kv[1].trim());
-            } catch (NumberFormatException e) {
-                System.out.println("Стоимость должна быть положительным числом");
-                continue;
-            }
-            try {
-                products.put(name, new Product(name, cost));
-            } catch (IllegalArgumentException e) {
-                System.out.println(e.getMessage());
-            }
-        }
-    }
-
-    private static void addPersons(String input) {
-        String[] personsData = input.split(";");
-        for (String personData : personsData) {
-            String[] kv = personData.split("=");
-            if (kv.length != 2) continue;
-            String name = kv[0].trim();
-            int money;
-            try {
-                money = Integer.parseInt(kv[1].trim());
-            } catch (NumberFormatException e) {
-                System.out.println("Деньги должны быть положительным числом");
-                continue;
-            }
-            try {
-                persons.put(name, new Person(name, money));
-            } catch (IllegalArgumentException e) {
-                System.out.println(e.getMessage());
-            }
-        }
-    }
-
-    private static void executeString(String input, Scanner scanner) {
-//        System.out.printf("Текущее состояние: %s.%n", currentState);
-        switch (currentState) {
-            case PERSONS_ENTERING_STATE -> addPersons(input);
-            case PRODUCTS_ENTERING_STATE -> addProducts(input);
-            case PUCHASES_ENTERING_STATE -> addPurchase(input);
-            case END_STATE -> endWork(scanner);
+            executeState(input);
         }
     }
 
     private static void checkState(String input) {
-//        System.out.printf("Текущее состояние: %s.%n", currentState);
-        if (input.contains("END") && currentState != State.END_STATE) {
-            currentState = State.END_STATE;
-        } else if (input.contains("=")) {
-            currentState = (currentState == State.INITIAL_STATE)
-                    ? State.PERSONS_ENTERING_STATE
-                    : State.PRODUCTS_ENTERING_STATE;
+        State fsmCurrentState = fsm.getState();
+        State newFsmState = null;
+
+        if (fsmCurrentState instanceof EnterState)
+            newFsmState = new PersonEnteringState();
+
+        if (fsmCurrentState instanceof ProductEnteringState)
+            newFsmState = new PurchaseEnteringState();
+
+        if (input.contains("END"))
+            newFsmState = new EndState();
+        else if (input.contains("=")) {
+            if (fsmCurrentState instanceof PersonEnteringState)
+                newFsmState = new ProductEnteringState();
         }
-        else if (input.contains("-") && currentState != State.PUCHASES_ENTERING_STATE)
-            currentState = State.PUCHASES_ENTERING_STATE;
+
+        if (newFsmState != null && fsmCurrentState != newFsmState) {
+            fsm.setState(newFsmState);
+        }
+    }
+
+    private static void executeState(String input) {
+        State fsmCurrentState = fsm.getState();
+        if (Objects.equals(input, "") && !(fsmCurrentState instanceof EndState)) return;
+
+        if (fsmCurrentState != null)
+            fsmCurrentState.execute(input, app);
+    }
+
+    public static Map<String, Person> getPersons() {
+        return persons;
+    }
+
+    public static Map<String, Product> getProducts() {
+        return products;
+    }
+
+    public void addProduct(String name, int cost) {
+        products.put(name, new Product(name, cost));
+    }
+
+    public void addPerson(String name, int money) {
+        persons.put(name, new Person(name, money));
+    }
+
+    public void finish() {
+        isRunning = false;
+        scanner.close();
+
+        if (!persons.isEmpty()) {
+            persons.values().forEach(System.out::println);
+        } else {
+            System.out.println("Список покупателей пуст");
+        }
     }
 }
