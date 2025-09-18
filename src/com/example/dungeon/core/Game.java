@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 public class Game {
     private final GameState state = new GameState();
     private final Map<String, Command> commands = new LinkedHashMap<>();
+    private final Map<String, Room> rooms = new HashMap<>();
 
     static {
         WorldInfo.touch("Game");
@@ -50,7 +51,7 @@ public class Game {
             long after = rt.totalMemory() - rt.freeMemory();
             System.out.println("Освобождено памяти: " + ((before - after) / 1024) + " KB");
         });
-        commands.put("look", (ctx, a) -> System.out.println(ctx.getCurrent().describe()));
+        commands.put("look", (ctx, a) -> System.out.println(ctx.getCurrent().getDescription()));
         commands.put("move", (ctx, a) -> {
             if (a.isEmpty()) {
                 throw new InvalidCommandException("Укажите направление: north, south, east, west");
@@ -66,7 +67,7 @@ public class Game {
 
             ctx.setCurrent(nextRoom);
             System.out.println("Вы перешли в: " + nextRoom.getName());
-            System.out.println(nextRoom.describe());
+            System.out.println(nextRoom.getDescription());
         });
         commands.put("take", (ctx, a) -> {
             if (a.isEmpty()) {
@@ -79,9 +80,9 @@ public class Game {
 
             // Находим предмет в комнате
             Item foundItem = currentRoom.getItems().stream()
-                .filter(item -> item.getName().equalsIgnoreCase(itemName))
-                .findFirst()
-                .orElse(null);
+                    .filter(item -> item.getName().equalsIgnoreCase(itemName))
+                    .findFirst()
+                    .orElse(null);
 
             if (foundItem == null) {
                 throw new InvalidCommandException("Предмет '" + itemName + "' не найден в комнате");
@@ -193,8 +194,8 @@ public class Game {
                 }
             }
         });
-        commands.put("save", (ctx, a) -> SaveLoad.save(ctx));
-        commands.put("load", (ctx, a) -> SaveLoad.load(ctx));
+        commands.put("save", (ctx, a) -> SaveLoad.save(ctx, rooms));
+        commands.put("load", (ctx, a) -> SaveLoad.load(ctx, this::findRoomByName));
         commands.put("scores", (ctx, a) -> SaveLoad.printScores());
         commands.put("exit", (ctx, a) -> {
             System.out.println("Пока!");
@@ -214,19 +215,43 @@ public class Game {
         Room square = new Room("Площадь", "Каменная площадь с фонтаном.");
         Room forest = new Room("Лес", "Шелест листвы и птичий щебет.");
         Room cave = new Room("Пещера", "Темно и сыро.");
+        Room dungeon = new Room("Подземелье", "Мрачное подземелье с цепями на стенах.");
+
+        // Настраиваем связи между комнатами
         square.getNeighbors().put("north", forest);
         forest.getNeighbors().put("south", square);
         forest.getNeighbors().put("east", cave);
+        forest.getNeighbors().put("west", dungeon);
         cave.getNeighbors().put("west", forest);
+        dungeon.getNeighbors().put("east", forest);
 
+        // Добавляем предметы в комнаты
         forest.getItems().add(new Potion("Малое зелье", 5));
+        forest.getItems().add(new Weapon("Деревянный меч", 2));
+        cave.getItems().add(new Key("Ржавый ключ"));
+        dungeon.getItems().add(new Potion("Большое зелье", 10));
+
+        // Добавляем монстров
         forest.setMonster(new Monster("Волк", 1, 8));
+        cave.setMonster(new Monster("Гоблин", 2, 12));
+        dungeon.setMonster(new Monster("Скелет", 3, 15));
 
         state.setCurrent(square);
+
+        // Сохраняем все комнаты в хранилище
+        rooms.put(square.getName(), square);
+        rooms.put(forest.getName(), forest);
+        rooms.put(cave.getName(), cave);
+        rooms.put(dungeon.getName(), dungeon);
     }
 
+    public Room findRoomByName(String roomName) {
+        return rooms.get(roomName);
+    }
+
+
     public void run() {
-        System.out.println("DungeonMini (TEMPLATE). 'help' — команды.");
+        System.out.println("DungeonMini. 'help' — команды.");
         try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
             while (true) {
                 System.out.print("> ");

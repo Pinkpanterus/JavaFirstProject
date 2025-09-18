@@ -34,7 +34,7 @@ public class Room {
         this.monster = m;
     }
 
-    public String describe() {
+    public String getDescription() {
         StringBuilder sb = new StringBuilder(name + ": " + description);
         if (!items.isEmpty()) {
             sb.append("\nПредметы: ").append(String.join(", ", items.stream().map(Item::getName).toList()));

@@ -8,6 +8,10 @@ public class Weapon extends Item {
         this.bonus = bonus;
     }
 
+    public int getDamageBonus() {
+        return bonus;
+    }
+
     @Override
     public void apply(GameState ctx) {
         var p = ctx.getPlayer();

@@ -6,6 +6,7 @@ import java.io.*;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class SaveLoad {
@@ -13,55 +14,266 @@ public class SaveLoad {
     private static final Path SCORES = Paths.get("scores.csv");
 
     public static void save(GameState s) {
-        try (BufferedWriter w = Files.newBufferedWriter(SAVE)) {
+        try (BufferedWriter w = Files.newBufferedWriter(SAVE,
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+
+            // Сохраняем данные игрока
             Player p = s.getPlayer();
-            w.write("player;" + p.getName() + ";" + p.getHp() + ";" + p.getAttack());
+            w.write("player:" + p.getName() + ":" + p.getHp() + ":" + p.getAttack());
             w.newLine();
-            String inv = p.getInventory().stream().map(i -> i.getClass().getSimpleName() + ":" + i.getName()).collect(Collectors.joining(","));
-            w.write("inventory;" + inv);
+
+            // Сохраняем инвентарь игрока
+            if (!p.getInventory().isEmpty()) {
+                String inventoryData = p.getInventory().stream()
+                        .map(item -> item.getClass().getSimpleName() + "|" + item.getName())
+                        .collect(Collectors.joining(","));
+                w.write("player_inventory:" + inventoryData);
+                w.newLine();
+            }
+
+            // Сохраняем текущую комнату
+            w.write("current_room:" + s.getCurrent().getName());
             w.newLine();
-            w.write("room;" + s.getCurrent().getName());
+
+            // Сохраняем счет
+            w.write("score:" + s.getScore());
             w.newLine();
-            System.out.println("Сохранено в " + SAVE.toAbsolutePath());
+
+            // Сохраняем все комнаты с их содержимым
+            w.write("=== ROOMS DATA ===");
+            w.newLine();
+
+            // Здесь нужно получить доступ ко всем комнатам мира
+            // Для этого изменим метод save, чтобы принимать также карту комнат
+            System.out.println("Сохранение данных комнат...");
+
+            System.out.println("Игра сохранена в " + SAVE.toAbsolutePath());
             writeScore(p.getName(), s.getScore());
+
         } catch (IOException e) {
-            throw new UncheckedIOException("Не удалось сохранить игру", e);
+            throw new UncheckedIOException("Не удалось сохранить игру: " + e.getMessage(), e);
         }
     }
 
-    public static void load(GameState s) {
+    // Перегруженный метод save с доступом ко всем комнатам
+    public static void save(GameState s, Map<String, Room> allRooms) {
+        try (BufferedWriter w = Files.newBufferedWriter(SAVE,
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+
+            // Сохраняем данные игрока
+            Player p = s.getPlayer();
+            w.write("player:" + p.getName() + ":" + p.getHp() + ":" + p.getAttack());
+            w.newLine();
+
+            // Сохраняем инвентарь игрока
+            if (!p.getInventory().isEmpty()) {
+                String inventoryData = p.getInventory().stream()
+                        .map(item -> item.getClass().getSimpleName() + "|" + item.getName() + "|" + getItemExtraData(item))
+                        .collect(Collectors.joining(","));
+                w.write("player_inventory:" + inventoryData);
+                w.newLine();
+            }
+
+            // Сохраняем текущую комнату
+            w.write("current_room:" + s.getCurrent().getName());
+            w.newLine();
+
+            // Сохраняем счет
+            w.write("score:" + s.getScore());
+            w.newLine();
+
+            // Сохраняем все комнаты с их содержимым
+            w.write("=== ROOMS DATA ===");
+            w.newLine();
+
+            for (Room room : allRooms.values()) {
+                // Сохраняем информацию о комнате
+                w.write("room:" + room.getName() + ":" + room.getDescription().replace(":", "\\:"));
+                w.newLine();
+
+                // Сохраняем предметы в комнате
+                if (!room.getItems().isEmpty()) {
+                    String roomItems = room.getItems().stream()
+                            .map(item -> item.getClass().getSimpleName() + "|" + item.getName() + "|" + getItemExtraData(item))
+                            .collect(Collectors.joining(","));
+                    w.write("room_items:" + room.getName() + ":" + roomItems);
+                    w.newLine();
+                }
+
+                // Сохраняем монстра в комнате
+                if (room.getMonster() != null) {
+                    Monster monster = room.getMonster();
+                    w.write("room_monster:" + room.getName() + ":" +
+                            monster.getName() + ":" + monster.getLevel() + ":" + monster.getHp());
+                    w.newLine();
+                }
+
+                // Сохраняем связи между комнатами
+                if (!room.getNeighbors().isEmpty()) {
+                    String neighbors = room.getNeighbors().entrySet().stream()
+                            .map(entry -> entry.getKey() + "=" + entry.getValue().getName())
+                            .collect(Collectors.joining(","));
+                    w.write("room_neighbors:" + room.getName() + ":" + neighbors);
+                    w.newLine();
+                }
+            }
+
+            System.out.println("Игра сохранена в " + SAVE.toAbsolutePath());
+            writeScore(p.getName(), s.getScore());
+
+        } catch (IOException e) {
+            throw new UncheckedIOException("Не удалось сохранить игру: " + e.getMessage(), e);
+        }
+    }
+
+    // Вспомогательный метод для получения дополнительных данных предмета
+    private static String getItemExtraData(Item item) {
+        if (item instanceof Potion potion) {
+            return String.valueOf(potion.getHealAmount());
+        } else if (item instanceof Weapon weapon) {
+            return String.valueOf(weapon.getDamageBonus());
+        }
+        return "0";
+    }
+
+    public static void load(GameState s, Function<String, Room> roomFinder) {
         if (!Files.exists(SAVE)) {
             System.out.println("Сохранение не найдено.");
             return;
         }
+
         try (BufferedReader r = Files.newBufferedReader(SAVE)) {
-            Map<String, String> map = new HashMap<>();
-            for (String line; (line = r.readLine()) != null; ) {
-                String[] parts = line.split(";", 2);
-                if (parts.length == 2) map.put(parts[0], parts[1]);
-            }
-            Player p = s.getPlayer();
-            String[] pp = map.getOrDefault("player", "player;Hero;10;3").split(";");
-            p.setName(pp[1]);
-            p.setHp(Integer.parseInt(pp[2]));
-            p.setAttack(Integer.parseInt(pp[3]));
-            p.getInventory().clear();
-            String inv = map.getOrDefault("inventory", "");
-            if (!inv.isBlank()) for (String tok : inv.split(",")) {
-                String[] t = tok.split(":", 2);
-                if (t.length < 2) continue;
-                switch (t[0]) {
-                    case "Potion" -> p.getInventory().add(new Potion(t[1], 5));
-                    case "Key" -> p.getInventory().add(new Key(t[1]));
-                    case "Weapon" -> p.getInventory().add(new Weapon(t[1], 3));
-                    default -> {
+            Map<String, String> data = new HashMap<>();
+            Map<String, List<String>> roomItems = new HashMap<>();
+            Map<String, String> roomMonsters = new HashMap<>();
+            Map<String, String> roomNeighbors = new HashMap<>();
+            String line;
+            boolean inRoomsSection = false;
+
+            while ((line = r.readLine()) != null) {
+                if (line.equals("=== ROOMS DATA ===")) {
+                    inRoomsSection = true;
+                    continue;
+                }
+
+                if (!inRoomsSection) {
+                    // Данные игрока и общие данные
+                    String[] parts = line.split(":", 2);
+                    if (parts.length == 2) {
+                        data.put(parts[0], parts[1]);
+                    }
+                } else {
+                    // Данные комнат
+                    String[] parts = line.split(":", 3);
+                    if (parts.length >= 3) {
+                        switch (parts[0]) {
+                            case "room" -> data.put("room_" + parts[1], parts[2]); // Описание комнаты
+                            case "room_items" -> roomItems.put(parts[1], Arrays.asList(parts[2].split(",")));
+                            case "room_monster" -> roomMonsters.put(parts[1], parts[2]);
+                            case "room_neighbors" -> roomNeighbors.put(parts[1], parts[2]);
+                        }
                     }
                 }
             }
-            System.out.println("Игра загружена (упрощённо).");
+
+            // Загружаем данные игрока
+            if (data.containsKey("player")) {
+                String[] playerData = data.get("player").split(":");
+                if (playerData.length >= 3) {
+                    Player p = s.getPlayer();
+                    p.setName(playerData[0]);
+                    p.setHp(Integer.parseInt(playerData[1]));
+                    p.setAttack(Integer.parseInt(playerData[2]));
+                }
+            }
+
+            // Загружаем инвентарь игрока
+            if (data.containsKey("player_inventory")) {
+                Player p = s.getPlayer();
+                p.getInventory().clear();
+
+                String[] inventoryItems = data.get("player_inventory").split(",");
+                for (String itemData : inventoryItems) {
+                    String[] itemParts = itemData.split("\\|");
+                    if (itemParts.length >= 2) {
+                        Item item = createItemFromData(itemParts);
+                        if (item != null) {
+                            p.getInventory().add(item);
+                        }
+                    }
+                }
+            }
+
+            // Загружаем текущую комнату
+            if (data.containsKey("current_room")) {
+                Room targetRoom = roomFinder.apply(data.get("current_room"));
+                if (targetRoom != null) {
+                    s.setCurrent(targetRoom);
+
+                    // Восстанавливаем предметы в текущей комнате
+                    if (roomItems.containsKey(targetRoom.getName())) {
+                        targetRoom.getItems().clear();
+                        for (String itemData : roomItems.get(targetRoom.getName())) {
+                            String[] itemParts = itemData.split("\\|");
+                            if (itemParts.length >= 2) {
+                                Item item = createItemFromData(itemParts);
+                                if (item != null) {
+                                    targetRoom.getItems().add(item);
+                                }
+                            }
+                        }
+                    }
+
+                    // Восстанавливаем монстра в текущей комнате
+                    if (roomMonsters.containsKey(targetRoom.getName())) {
+                        String[] monsterData = roomMonsters.get(targetRoom.getName()).split(":");
+                        if (monsterData.length >= 3) {
+                            Monster monster = new Monster(
+                                    monsterData[0],
+                                    Integer.parseInt(monsterData[1]),
+                                    Integer.parseInt(monsterData[2])
+                            );
+                            targetRoom.setMonster(monster);
+                        }
+                    }
+                }
+            }
+
+            // Загружаем счет
+            if (data.containsKey("score")) {
+                try {
+                    s.addScore(Integer.parseInt(data.get("score")));
+                } catch (NumberFormatException e) {
+                    System.out.println("Ошибка загрузки счета: " + e.getMessage());
+                }
+            }
+
+            System.out.println("Игра успешно загружена");
+
         } catch (IOException e) {
-            throw new UncheckedIOException("Не удалось загрузить игру", e);
+            throw new UncheckedIOException("Не удалось загрузить игру: " + e.getMessage(), e);
+        } catch (NumberFormatException e) {
+            System.out.println("Ошибка формата числовых данных в сохранении: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Неожиданная ошибка при загрузке: " + e.getMessage());
+            e.printStackTrace();
         }
+    }
+
+    private static Item createItemFromData(String[] itemParts) {
+        String itemType = itemParts[0];
+        String itemName = itemParts[1];
+        int extraData = itemParts.length > 2 ? Integer.parseInt(itemParts[2]) : 0;
+
+        return switch (itemType) {
+            case "Potion" -> new Potion(itemName, extraData);
+            case "Weapon" -> new Weapon(itemName, extraData);
+            case "Key" -> new Key(itemName);
+            default -> {
+                System.out.println("Неизвестный тип предмета: " + itemType);
+                yield null;
+            }
+        };
     }
 
     public static void printScores() {
