@@ -2,7 +2,7 @@ package com.example.dungeon.model;
 
 public class GameState {
     private Player player;
-    private Room current;
+    private Room currentRoom;
     private int score;
 
     public Player getPlayer() {
@@ -13,12 +13,12 @@ public class GameState {
         this.player = p;
     }
 
-    public Room getCurrent() {
-        return current;
+    public Room getCurrentRoom() {
+        return currentRoom;
     }
 
-    public void setCurrent(Room r) {
-        this.current = r;
+    public void setCurrentRoom(Room r) {
+        this.currentRoom = r;
     }
 
     public int getScore() {

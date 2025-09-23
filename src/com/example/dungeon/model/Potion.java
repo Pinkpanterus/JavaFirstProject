@@ -15,8 +15,8 @@ public class Potion extends Item {
     @Override
     public void apply(GameState ctx) {
         Player p = ctx.getPlayer();
-        p.setHp(p.getHp() + heal);
-        System.out.println("Выпито зелье: +" + heal + " HP. Текущее HP: " + p.getHp());
+        p.setMaxHP(p.getMaxHP() + heal);
+        System.out.println("Выпито зелье: +" + heal + " HP. Текущее HP: " + p.getMaxHP());
         p.getInventory().remove(this);
     }
 }
