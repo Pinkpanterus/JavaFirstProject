@@ -13,49 +13,6 @@ public class SaveLoad {
     private static final Path SAVE = Paths.get("save.txt");
     private static final Path SCORES = Paths.get("scores.csv");
 
-    public static void save(GameState s) {
-        try (BufferedWriter w = Files.newBufferedWriter(SAVE,
-                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-
-            // Сохраняем данные игрока
-            Player p = s.getPlayer();
-            w.write("player:" + p.getName() + ":" + p.getHp() + ":" + p.getAttack());
-            w.newLine();
-
-            // Сохраняем инвентарь игрока
-            if (!p.getInventory().isEmpty()) {
-                String inventoryData = p.getInventory().stream()
-                        .map(item -> item.getClass().getSimpleName() + "|" + item.getName())
-                        .collect(Collectors.joining(","));
-                w.write("player_inventory:" + inventoryData);
-                w.newLine();
-            }
-
-            // Сохраняем текущую комнату
-            w.write("current_room:" + s.getCurrent().getName());
-            w.newLine();
-
-            // Сохраняем счет
-            w.write("score:" + s.getScore());
-            w.newLine();
-
-            // Сохраняем все комнаты с их содержимым
-            w.write("=== ROOMS DATA ===");
-            w.newLine();
-
-            // Здесь нужно получить доступ ко всем комнатам мира
-            // Для этого изменим метод save, чтобы принимать также карту комнат
-            System.out.println("Сохранение данных комнат...");
-
-            System.out.println("Игра сохранена в " + SAVE.toAbsolutePath());
-            writeScore(p.getName(), s.getScore());
-
-        } catch (IOException e) {
-            throw new UncheckedIOException("Не удалось сохранить игру: " + e.getMessage(), e);
-        }
-    }
-
-    // Перегруженный метод save с доступом ко всем комнатам
     public static void save(GameState s, Map<String, Room> allRooms) {
         try (BufferedWriter w = Files.newBufferedWriter(SAVE,
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
@@ -88,7 +45,7 @@ public class SaveLoad {
 
             for (Room room : allRooms.values()) {
                 // Сохраняем информацию о комнате
-                w.write("room:" + room.getName() + ":" + room.getDescription().replace(":", "\\:"));
+                w.write("room:" + room.getName() + ":" + escapeColons(room.getDescription()));
                 w.newLine();
 
                 // Сохраняем предметы в комнате
@@ -103,8 +60,15 @@ public class SaveLoad {
                 // Сохраняем монстра в комнате
                 if (room.getMonster() != null) {
                     Monster monster = room.getMonster();
-                    w.write("room_monster:" + room.getName() + ":" +
-                            monster.getName() + ":" + monster.getLevel() + ":" + monster.getHp());
+                    String monsterData = monster.getName() + ":" + monster.getLevel() + ":" + monster.getHp();
+
+                    // Сохраняем лут монстра
+                    if (monster.getLootItem() != null) {
+                        Item loot = monster.getLootItem();
+                        monsterData += ":" + loot.getClass().getSimpleName() + "|" + loot.getName() + "|" + getItemExtraData(loot);
+                    }
+
+                    w.write("room_monster:" + room.getName() + ":" + monsterData);
                     w.newLine();
                 }
 
@@ -116,6 +80,30 @@ public class SaveLoad {
                     w.write("room_neighbors:" + room.getName() + ":" + neighbors);
                     w.newLine();
                 }
+
+                // Сохраняем двери в комнате
+                if (!room.getDoors().isEmpty()) {
+                    String doorsData = room.getDoors().entrySet().stream()
+                            .map(entry -> {
+                                Door door = entry.getValue();
+                                String doorInfo = entry.getKey() + ">" +
+                                        door.getName() + ">" +
+                                        door.isLocked();
+
+                                // Сохраняем ключ для двери, если он есть
+                                if (door.getOpenningKey() != null) {
+                                    Key key = door.getOpenningKey();
+                                    doorInfo += ">" + key.getClass().getSimpleName() + "|" + key.getName();
+                                } else {
+                                    doorInfo += ">null";
+                                }
+
+                                return doorInfo;
+                            })
+                            .collect(Collectors.joining(","));
+                    w.write("room_doors:" + room.getName() + ":" + doorsData);
+                    w.newLine();
+                }
             }
 
             System.out.println("Игра сохранена в " + SAVE.toAbsolutePath());
@@ -124,6 +112,11 @@ public class SaveLoad {
         } catch (IOException e) {
             throw new UncheckedIOException("Не удалось сохранить игру: " + e.getMessage(), e);
         }
+    }
+
+    // Вспомогательный метод для экранирования двоеточий в описании
+    private static String escapeColons(String text) {
+        return text.replace(":", "\\:");
     }
 
     // Вспомогательный метод для получения дополнительных данных предмета
@@ -147,6 +140,7 @@ public class SaveLoad {
             Map<String, List<String>> roomItems = new HashMap<>();
             Map<String, String> roomMonsters = new HashMap<>();
             Map<String, String> roomNeighbors = new HashMap<>();
+            Map<String, String> roomDoors = new HashMap<>();
             String line;
             boolean inRoomsSection = false;
 
@@ -167,10 +161,11 @@ public class SaveLoad {
                     String[] parts = line.split(":", 3);
                     if (parts.length >= 3) {
                         switch (parts[0]) {
-                            case "room" -> data.put("room_" + parts[1], parts[2]); // Описание комнаты
+                            case "room" -> data.put("room_" + parts[1], unescapeColons(parts[2])); // Описание комнаты
                             case "room_items" -> roomItems.put(parts[1], Arrays.asList(parts[2].split(",")));
                             case "room_monster" -> roomMonsters.put(parts[1], parts[2]);
                             case "room_neighbors" -> roomNeighbors.put(parts[1], parts[2]);
+                            case "room_doors" -> roomDoors.put(parts[1], parts[2]);
                         }
                     }
                 }
@@ -204,16 +199,17 @@ public class SaveLoad {
                 }
             }
 
-            // Загружаем текущую комнату
+            // Загружаем текущую комнату и восстанавливаем её состояние
             if (data.containsKey("current_room")) {
-                Room targetRoom = roomFinder.apply(data.get("current_room"));
+                String roomName = data.get("current_room");
+                Room targetRoom = roomFinder.apply(roomName);
                 if (targetRoom != null) {
                     s.setCurrent(targetRoom);
 
-                    // Восстанавливаем предметы в текущей комнате
-                    if (roomItems.containsKey(targetRoom.getName())) {
+                    // Восстанавливаем предметы в комнате
+                    if (roomItems.containsKey(roomName)) {
                         targetRoom.getItems().clear();
-                        for (String itemData : roomItems.get(targetRoom.getName())) {
+                        for (String itemData : roomItems.get(roomName)) {
                             String[] itemParts = itemData.split("\\|");
                             if (itemParts.length >= 2) {
                                 Item item = createItemFromData(itemParts);
@@ -224,16 +220,75 @@ public class SaveLoad {
                         }
                     }
 
-                    // Восстанавливаем монстра в текущей комнате
-                    if (roomMonsters.containsKey(targetRoom.getName())) {
-                        String[] monsterData = roomMonsters.get(targetRoom.getName()).split(":");
+                    // Восстанавливаем монстра в комнате
+                    if (roomMonsters.containsKey(roomName)) {
+                        String[] monsterData = roomMonsters.get(roomName).split(":");
                         if (monsterData.length >= 3) {
+                            // Создаем монстра
                             Monster monster = new Monster(
                                     monsterData[0],
                                     Integer.parseInt(monsterData[1]),
-                                    Integer.parseInt(monsterData[2])
+                                    Integer.parseInt(monsterData[2]),
+                                    null
                             );
+
+                            // Восстанавливаем лут монстра, если он есть
+                            if (monsterData.length >= 4) {
+                                String[] lootParts = monsterData[3].split("\\|");
+                                if (lootParts.length >= 2) {
+                                    Item lootItem = createItemFromData(lootParts);
+                                    // Для установки лута нужен сеттер, добавим его временно через рефлексию
+                                    try {
+                                        var lootField = Monster.class.getDeclaredField("lootItem");
+                                        lootField.setAccessible(true);
+                                        lootField.set(monster, lootItem);
+                                    } catch (Exception e) {
+                                        System.out.println("Не удалось установить лут монстра: " + e.getMessage());
+                                    }
+                                }
+                            }
+
                             targetRoom.setMonster(monster);
+                        }
+                    }
+
+                    // Восстанавливаем связи между комнатами
+                    if (roomNeighbors.containsKey(roomName)) {
+                        targetRoom.getNeighbors().clear();
+                        String[] neighborsData = roomNeighbors.get(roomName).split(",");
+                        for (String neighborData : neighborsData) {
+                            String[] parts = neighborData.split("=");
+                            if (parts.length == 2) {
+                                Room neighborRoom = roomFinder.apply(parts[1]);
+                                if (neighborRoom != null) {
+                                    targetRoom.getNeighbors().put(parts[0], neighborRoom);
+                                }
+                            }
+                        }
+                    }
+
+                    // Восстанавливаем двери в комнате
+                    if (roomDoors.containsKey(roomName)) {
+                        targetRoom.getDoors().clear();
+                        String[] doorsData = roomDoors.get(roomName).split(",");
+                        for (String doorData : doorsData) {
+                            String[] parts = doorData.split(">");
+                            if (parts.length >= 3) {
+                                String direction = parts[0];
+                                String doorName = parts[1];
+                                boolean isLocked = Boolean.parseBoolean(parts[2]);
+
+                                Key openingKey = null;
+                                if (parts.length >= 4 && !"null".equals(parts[3])) {
+                                    String[] keyParts = parts[3].split("\\|");
+                                    if (keyParts.length >= 2) {
+                                        openingKey = new Key(keyParts[1]);
+                                    }
+                                }
+
+                                Door door = new Door(doorName, isLocked, openingKey);
+                                targetRoom.getDoors().put(direction, door);
+                            }
                         }
                     }
                 }
@@ -256,8 +311,12 @@ public class SaveLoad {
             System.out.println("Ошибка формата числовых данных в сохранении: " + e.getMessage());
         } catch (Exception e) {
             System.out.println("Неожиданная ошибка при загрузке: " + e.getMessage());
-            e.printStackTrace();
         }
+    }
+
+    // Вспомогательный метод для восстановления текста
+    private static String unescapeColons(String text) {
+        return text.replace("\\:", ":");
     }
 
     private static Item createItemFromData(String[] itemParts) {
@@ -270,8 +329,13 @@ public class SaveLoad {
             case "Weapon" -> new Weapon(itemName, extraData);
             case "Key" -> new Key(itemName);
             default -> {
-                System.out.println("Неизвестный тип предмета: " + itemType);
-                yield null;
+                // Создаем анонимный предмет для неизвестных типов
+                yield new Item(itemName) {
+                    @Override
+                    public void apply(GameState ctx) {
+                        System.out.println("Предмет " + itemName + " не имеет специального эффекта.");
+                    }
+                };
             }
         };
     }
@@ -283,8 +347,11 @@ public class SaveLoad {
         }
         try (BufferedReader r = Files.newBufferedReader(SCORES)) {
             System.out.println("Таблица лидеров (топ-10):");
-            r.lines().skip(1).map(l -> l.split(",")).map(a -> new Score(a[1], Integer.parseInt(a[2])))
-                    .sorted(Comparator.comparingInt(Score::score).reversed()).limit(10)
+            r.lines().skip(1).map(l -> l.split(","))
+                    .filter(parts -> parts.length >= 3)
+                    .map(a -> new Score(a[1], Integer.parseInt(a[2])))
+                    .sorted(Comparator.comparingInt(Score::score).reversed())
+                    .limit(10)
                     .forEach(s -> System.out.println(s.player() + " — " + s.score()));
         } catch (IOException e) {
             System.err.println("Ошибка чтения результатов: " + e.getMessage());
@@ -296,7 +363,7 @@ public class SaveLoad {
             boolean header = !Files.exists(SCORES);
             try (BufferedWriter w = Files.newBufferedWriter(SCORES, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
                 if (header) {
-                    w.write("ts,player,score");
+                    w.write("timestamp,player,score");
                     w.newLine();
                 }
                 w.write(LocalDateTime.now() + "," + player + "," + score);

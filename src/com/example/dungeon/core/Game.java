@@ -65,6 +65,13 @@ public class Game {
                 throw new InvalidCommandException("Нет выхода в направлении: " + direction);
             }
 
+            Door door = currentRoom.getDoorByDirection(direction);
+            if (door != null && door.isLocked()){
+//                throw new InvalidCommandException("Закрытая дверь в направлении: " + direction);
+                System.out.println("Закрытая дверь в направлении: " + direction);
+                return;
+            }
+
             ctx.setCurrent(nextRoom);
             System.out.println("Вы перешли в: " + nextRoom.getName());
             System.out.println(nextRoom.getDescription());
@@ -142,6 +149,35 @@ public class Game {
             // Применяем предмет
             foundItem.apply(ctx);
         });
+        commands.put("open", (ctx, a) -> {
+            if (a.isEmpty()) {
+                throw new InvalidCommandException("Укажите направление двери");
+            }
+
+            Player player = ctx.getPlayer();
+            Room currentRoom = ctx.getCurrent();
+            String direction = String.join(" ", a);
+            Door door = currentRoom.getDoorByDirection(direction);
+            if (player == null || door == null || !door.isLocked())
+                return;
+
+            Monster monster = currentRoom.getMonster();
+            if (monster == null) {
+                var inventory = player.getInventory();
+                Key openningKey = door.getOpenningKey();
+                boolean playerHasKey = inventory.contains(openningKey);
+
+                if (playerHasKey) {
+                    inventory.remove(openningKey);
+                    door.apply(ctx);
+                    System.out.printf("Дверь в комнате %s по направлению %s - теперь %s.\n", currentRoom.getName(), direction, door.isLocked() ? "закрыта": "открыта");
+                } else
+                    System.out.printf("Для этой двери нужен: %s\n", openningKey.getName());
+            } else {
+                System.out.printf("Не убитый %s атаковал Вас со спины пока Вы пытались открыть дверь. Вы погибли! Игра окончена.\n", monster.getName());
+                System.exit(0);
+            }
+        });
         commands.put("fight", (ctx, a) -> {
             Room currentRoom = ctx.getCurrent();
             Player player = ctx.getPlayer();
@@ -164,10 +200,15 @@ public class Game {
                 if (monster.getHp() <= 0) {
                     System.out.println("Вы победили " + monster.getName() + "!");
 
-                    if (Math.random() < 0.5) { // 50% шанс выпадения лута
-                        Potion loot = new Potion("Зелье здоровья", 10);
-                        currentRoom.getItems().add(loot);
-                        System.out.println(monster.getName() + " выпало: " + loot.getName());
+//                    if (Math.random() < 0.5) { // 50% шанс выпадения лута
+//                        Potion loot = new Potion("Зелье здоровья", 10);
+//                        currentRoom.getItems().add(loot);
+//                        System.out.println(monster.getName() + " выпало: " + loot.getName());
+//                    }
+                    Item lootItem = monster.getLootItem();
+                    if (lootItem != null) {
+                        currentRoom.getItems().add(lootItem);
+                        System.out.println("Из монстра " + monster.getName() + " выпало: " + lootItem.getName());
                     }
 
                     currentRoom.setMonster(null);
@@ -225,16 +266,26 @@ public class Game {
         cave.getNeighbors().put("west", forest);
         dungeon.getNeighbors().put("east", forest);
 
+        //Добавляем двери в комнаты
+        Key woodenKey = new Key("Деревянный ключ");
+        Key goldenKey = new Key("Золотой ключ");
+        cave.setDoor("north", new Door("Деревянная дверь", true, woodenKey));
+        dungeon.setDoor("west", new Door("Золотая дверь", true, goldenKey));
+
         // Добавляем предметы в комнаты
         forest.getItems().add(new Potion("Малое зелье", 5));
         forest.getItems().add(new Weapon("Деревянный меч", 2));
-        cave.getItems().add(new Key("Ржавый ключ"));
         dungeon.getItems().add(new Potion("Большое зелье", 10));
 
         // Добавляем монстров
-        forest.setMonster(new Monster("Волк", 1, 8));
-        cave.setMonster(new Monster("Гоблин", 2, 12));
-        dungeon.setMonster(new Monster("Скелет", 3, 15));
+        Item fishBone = new Item("Рыбья кость") {
+            @Override
+            public void apply(GameState ctx) {System.out.println("Бесполезная рыбная кость."); }
+        };
+
+        forest.setMonster(new Monster("Волк", 1, 8, fishBone));
+        cave.setMonster(new Monster("Гоблин", 2, 12, woodenKey));
+        dungeon.setMonster(new Monster("Скелет", 3, 15, goldenKey));
 
         state.setCurrent(square);
 
