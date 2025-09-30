@@ -22,7 +22,6 @@
     </dependencies>
 
     <build>
-<!--        <sourceDirectory>ru.rtk.java/java_order_app/src</sourceDirectory>-->
         <sourceDirectory>D:\JavaFirstProject\ru.rtk.java\java_order_app\src</sourceDirectory>
         <plugins>
             <plugin>
